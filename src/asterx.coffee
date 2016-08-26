@@ -41,13 +41,11 @@ exports["transform"] = (input, back)->
    
    if not _.isFunction back then return throw new Error('callback is required {function}.')
    if not _.isObject input then return back new Error('input is required {object}.')
-   if not _.isString input.file then return back new Error('input.file is required {string}.')
+
    try
-      
       output = {}
       output.code = input.code
       output.source_map = input.source_map
-      output.warnings = []
       
       input.source_map = JSON.parse input.source_map if _.isString input.source_map
       input.source_map_enabled = _.isObject input.source_map
@@ -55,22 +53,13 @@ exports["transform"] = (input, back)->
       if input.source_map_enabled is true and not _.isString input.source_map.file then return back new Error 'input.source_map.file is required {string}.'
       if input.source_map_enabled is true and not _.isArray input.source_map.sources then return back new Error 'input.source_map.sources is required {array}.'
       
-      # read code.
-      input.code = fs.readFileSync input.file, 'utf-8' if not _.isString input.code or not _.isObject input.ast
-      
-      # skip if async markers are not present in code.
-      if not _.string.include(input.code, input.options.markers.wait) and
-         not _.string.include(input.code, input.options.markers.wait_err) and
-         not _.string.include(input.code, input.options.markers.end)
-      then return back null, output
-      
       # parse code.
-      input.ast = ast.parse input.code, locations: input.source_map_enabled if not _.isObject input.ast
+      input.ast = ast.parse input.code, locations: input.source_map_enabled
       
       # start with continuous passing style transformation.
       callback = {}
-      callback.wait = ast.create.identifier(input.options?.markers.wait)
-      callback.wait_err = ast.create.identifier(input.options?.markers.wait_err)
+      callback.value = ast.create.identifier(input.options?.callback_value)
+      callback.error_value = ast.create.identifier(input.options?.callback_error_value)
       callback.null = ast.create.identifier 'null'
       callback.error = ast.create.identifier 'error'
       
@@ -79,9 +68,9 @@ exports["transform"] = (input, back)->
          declaration = {}
          declaration.statements = path.node.body
          declaration.parameters = path.node.params
-         callback.is_lazy = -> _.contains _.pluck(declaration.parameters, 'name'), callback.wait.name
-         callback.is_strict = -> _.contains _.pluck(declaration.parameters, 'name'), callback.wait_err.name
-         callback.name = if callback.is_lazy() then callback.wait.name else callback.wait_err.name
+         callback.is_lazy = -> _.contains _.pluck(declaration.parameters, 'name'), callback.value.name
+         callback.is_strict = -> _.contains _.pluck(declaration.parameters, 'name'), callback.error_value.name
+         callback.name = if callback.is_lazy() then callback.value.name else callback.error_value.name
          callback.position = _.findIndex declaration.parameters, (parameter)-> parameter.name is callback.name
          
          if callback.is_strict() or callback.is_lazy()
@@ -89,19 +78,19 @@ exports["transform"] = (input, back)->
             # rewrite return statement.
             ast.walk path.node, visitReturnStatement: (path)->
                path.get('argument').replace if callback.is_strict()
-                  ast.create.callExpression(callback.wait, [callback.null, path.node.argument])
-               else ast.create.conditionalExpression(callback.wait,
-                     ast.create.callExpression(callback.wait, [callback.null, path.node.argument]),
+                  ast.create.callExpression(callback.value, [callback.null, path.node.argument])
+               else ast.create.conditionalExpression(callback.value,
+                     ast.create.callExpression(callback.value, [callback.null, path.node.argument]),
                      path.node.argument
                   )
                @.traverse path
             
             # when strict replace callback parameter with lazy name and add existence test.
             if callback.is_strict()
-               path.get('params', callback.position).replace callback.wait
+               path.get('params', callback.position).replace callback.value
                declaration.statements.body.unshift ast.create.ifStatement(
-                  ast.create.binaryExpression('!==', ast.create.unaryExpression('typeof', callback.wait), ast.create.literal 'function'),
-                  ast.create.returnStatement(ast.create.callExpression(callback.wait_err, [
+                  ast.create.binaryExpression('!==', ast.create.unaryExpression('typeof', callback.value), ast.create.literal 'function'),
+                  ast.create.returnStatement(ast.create.callExpression(callback.error_value, [
                      ast.create.newExpression(ast.create.identifier('Error'), [ast.create.literal('Missing callback.')])
                   ]))
                )
@@ -111,9 +100,9 @@ exports["transform"] = (input, back)->
                declaration.statements,
                ast.create.catchClause(callback.error, null, ast.create.blockStatement [
                   ast.create.returnStatement(
-                     ast.create.conditionalExpression(callback.wait,
-                        ast.create.callExpression(callback.wait, [callback.error]),
-                        ast.create.callExpression(callback.wait_err, [callback.error])
+                     ast.create.conditionalExpression(callback.value,
+                        ast.create.callExpression(callback.value, [callback.error]),
+                        ast.create.callExpression(callback.error_value, [callback.error])
                      )
                   )
                ])
@@ -128,8 +117,8 @@ exports["transform"] = (input, back)->
          expression.call = if expression.is_assigned() then path.node.right else path.node
          expression.arguments = expression.call.arguments
          expression.is_call = -> ast.types.CallExpression.check expression.call
-         callback.is_lazy = -> _.contains _.pluck(expression.arguments, 'name'), callback.wait.name
-         callback.is_strict = -> _.contains _.pluck(expression.arguments, 'name'), callback.wait_err.name
+         callback.is_lazy = -> _.contains _.pluck(expression.arguments, 'name'), callback.value.name
+         callback.is_strict = -> _.contains _.pluck(expression.arguments, 'name'), callback.error_value.name
          
          # transform only expression calls with callback marker.
          if expression.is_call() and (callback.is_lazy() or callback.is_strict())
@@ -138,7 +127,7 @@ exports["transform"] = (input, back)->
             expression.path = if expression.is_assigned() then path.get('right') else path
             expression.position = expression.node.name
             expression.parent = expression.node.parentPath.value
-            callback.name = if callback.is_lazy() then callback.wait.name else callback.wait_err.name
+            callback.name = if callback.is_lazy() then callback.value.name else callback.error_value.name
             callback.position = _.findIndex expression.arguments, (arg)-> arg.name is callback.name
             callback.marker = expression.path.get('arguments', callback.position)
             callback.arguments = if expression.is_assigned() then [callback.error, expression.recipient] else [callback.error]
@@ -151,9 +140,9 @@ exports["transform"] = (input, back)->
             if callback.is_lazy() then callback.statements.unshift(
                ast.create.ifStatement(
                   callback.error,
-                  ast.create.returnStatement(ast.create.conditionalExpression(callback.wait,
-                     ast.create.callExpression(callback.wait, [callback.error]),
-                     ast.create.callExpression(callback.wait_err, [callback.error])
+                  ast.create.returnStatement(ast.create.conditionalExpression(callback.value,
+                     ast.create.callExpression(callback.value, [callback.error]),
+                     ast.create.callExpression(callback.error_value, [callback.error])
                   ))
                )
             )
@@ -186,7 +175,7 @@ exports["transform"] = (input, back)->
       
       # inject callback helper function.
       ast.walk input.ast, visitProgram: (path)->
-         path.get('body').unshift ast.create.variableDeclaration('var', [ast.create.variableDeclarator(callback.wait_err,
+         path.get('body').unshift ast.create.variableDeclaration('var', [ast.create.variableDeclarator(callback.error_value,
             ast.create.functionExpression(null, [callback.error], ast.create.blockStatement([
                # declare global 'target': window if browser, global if nodejs.
                ast.create.variableDeclaration('var', [ast.create.variableDeclarator(ast.create.identifier('target'),
