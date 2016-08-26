@@ -1,0 +1,50 @@
+{
+    "name": "asterx.js",
+    "version": "1.0.0",
+    "description": "Javascript continuos-passing-style transformations.",
+    "author": {
+        "name": "Stefano Graziato",
+        "url": "http://www.officine-eureka.it",
+        "email": "stefano.graziato@officine-eureka.it"
+    },
+    "license": "BSD",
+    "main": "index.js",
+    "bin": {
+        "asterx": "./asterx"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/eurekaa/asterx.js.git"
+    },
+    "preferGlobal": true,
+    "bugs": {
+        "url": "https://github.com/eurekaa/asterx.js/issues"
+    },
+    "keywords": [
+        "javascript",
+        "compiler",
+        "async",
+        "cps",
+        "coffeescript",
+        "streamline"
+    ],
+    "dependencies": {
+        "source-map": "0.1.38",
+        "acorn": "0.7.0",
+        "strip-comments": "0.2.0",
+        "ast-types": "0.4.9",
+        "escodegen": "1.3.3",
+        "coffee-script": "1.9.3",
+        "commander": "2.3.0",
+        "fs-tools": "0.2.11",
+        "string": "1.5.0",
+        "async": "0.9.0",
+        "lodash": "2.4.1",
+        "underscore.string": "2.3.3",
+        "log4js": "0.6.38"
+    },
+    "engines": {
+        "node": ">=4.5.0"
+    },
+    "readmeFilename": "README.md"
+}
