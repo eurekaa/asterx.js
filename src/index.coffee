@@ -86,9 +86,9 @@ exports["run"] = ->
    batch.started = Date.now()
       
    # walk through input and process each file.
-   log = log4js.getDefaultLogger()
-   log.info "*********** ASTERX " + info.version + " **********"
-   log.debug "[input: " + config.input + ", output: " + config.output + "]\n"
+   logger = log4js.getDefaultLogger()
+   logger.info "*********** ASTERX " + info.version + " **********"
+   logger.debug "[input: " + config.input + ", output: " + config.output + "]\n"
    fs_tools.walk config.input, (input_file, input_info, next)->
       
       input = {}
@@ -171,12 +171,13 @@ exports["run"] = ->
                output.code = compiled.js or compiled
                output.source_map = JSON.parse compiled.v3SourceMap if compiled.v3SourceMap
                log.debug "coffee-script compilation: DONE!"
+               return back()
             catch err
                failed = true
                log.error err.message
                log.trace err.stack
                log.error "coffee-script compilation: FAILED!"
-            return back()
+               return back()
          
          
          # callback transformation.
@@ -184,12 +185,10 @@ exports["run"] = ->
             if failed is true then return back()
             if not (string(output.code).contains "$BACK_ERR" or string(output.code).contains "$BACK") then return back()
             asterx.transform
-               file: output.file
                code: output.code
                source_map: source_map.code
-               options:
-                  callback_value: "$BACK",
-                  callback_error_value: "$BACK_ERR"
+               callback_value: "$BACK",
+               callback_error_value: "$BACK_ERR"
             , (err, result)->
                if err
                   failed = true
@@ -207,7 +206,7 @@ exports["run"] = ->
          (back)->
             if failed is true then return back()
             # add source map reference to output.
-            if _.has source_map.code, 'mappings' then output.code += "\n" + source_map.link
+            if _.has source_map.code, "mappings" then output.code += "\n" + source_map.link
             async.series [
                (back)-> fs_tools.mkdir output.directory, back
                (back)-> fs.writeFile output.file, output.code, back
@@ -217,6 +216,7 @@ exports["run"] = ->
                   log.error err.message
                   log.trace err.stack
                   log.error "writing output: FAILED!"
+               else log.debug "writing output: DONE!"
                return back()
          
          
@@ -272,9 +272,8 @@ exports["run"] = ->
    , -> # end of input walk (errors are self printed by each file).
       batch.ended = Date.now()
       batch.duration = ((batch.ended - batch.started) / 1000) + "s"
-      log = log4js.getDefaultLogger()
-      log.debug """[processed: #{batch.processed}, skipped: #{batch.skipped}]"""
-      log.debug """[successes: #{batch.successes}, failures: #{batch.failures}]"""
-      log.debug """[duration: #{batch.duration}]"""
-      log.info '********** ASTERX DONE! **********'
+      logger.debug """[processed: #{batch.processed}, skipped: #{batch.skipped}]"""
+      logger.debug """[successes: #{batch.successes}, failures: #{batch.failures}]"""
+      logger.debug """[duration: #{batch.duration}]"""
+      logger.info '********** ASTERX DONE! **********'
       
