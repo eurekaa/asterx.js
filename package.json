@@ -31,7 +31,6 @@
     "dependencies": {
         "source-map": "0.1.38",
         "acorn": "0.7.0",
-        "strip-comments": "0.2.0",
         "ast-types": "0.4.9",
         "escodegen": "1.3.3",
         "coffee-script": "1.9.3",
