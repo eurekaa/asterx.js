@@ -58,8 +58,8 @@ exports["transform"] = (input, back)->
       
       # start with continuous passing style transformation.
       callback = {}
-      callback.value = ast.create.identifier(input.options?.callback_value)
-      callback.error_value = ast.create.identifier(input.options?.callback_error_value)
+      callback.value = ast.create.identifier(input.callback_value)
+      callback.error_value = ast.create.identifier(input.callback_error_value)
       callback.null = ast.create.identifier 'null'
       callback.error = ast.create.identifier 'error'
       
