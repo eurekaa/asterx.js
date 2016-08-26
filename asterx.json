@@ -1,0 +1,14 @@
+{
+  // SETUP DIRECTORIES
+  "input": "./test",
+  "output": ".test/bin",
+  "source_map": "./test/map",
+  "cache": "./test/cache",
+
+  // SETUP LOGGING [ALL, TRACE, DEBUG, INFO, WARNING, ERROR, FATAL]
+  "log": "ALL",
+
+  // DEFINE CALLBACK MARKERS
+  "callback_value": "!!",
+  "callback_error_value": "!!!"
+}
