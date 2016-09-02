@@ -18,8 +18,8 @@ config =
    map: "map/test"
    cache: "cache/test"
    watch: false
-   callback_value: "!!"
-   callback_error_value: "!!!"
+   callback_value: "**"
+   callback_error_value: "***"
    log: "DEBUG"
 
 
