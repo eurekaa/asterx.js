@@ -196,13 +196,13 @@ exports["transform"] = (input, back)->
          )])
          # do not continue traversing.
          return false
-
+      
       # generate code.
       transformed = ast.format input.ast,
          sourceMapWithCode: input.source_map_enabled
          sourceMap: input.source_map.sources[0] if input.source_map_enabled is true
       
-      output.code = transformed.code
+      output.code = transformed.code or transformed
       
       # add escodegen missing properties.
       if input.source_map_enabled is true
