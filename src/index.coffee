@@ -104,22 +104,27 @@ exports["run"] = ->
       output.code = ""
 
       source_map = {}
-      source_map.extension = "map"
-      source_map.file = path.normalize(config.source_map + "/" + path.basename(input.file, path.extname(input.file)) + "." + output.extension + "." + source_map.extension)
-      source_map.directory = path.normalize(path.dirname source_map.file)
-      source_map.link = '/*# sourceMappingURL=' + path.normalize(path.relative(output.directory, source_map.directory) + "/" + path.basename(source_map.file)) + " */"
-      source_map.code =
-         file: path.normalize(path.relative(source_map.directory, output.file)),
-         sources: [path.normalize(path.relative(source_map.directory, input.file))]
+      source_map.is_enabled = config.source_map isnt "" and config.source_map isnt null
+      if source_map.is_enabled
+         source_map.extension = "map"
+         source_map.file = path.normalize(config.source_map + "/" + path.basename(input.file, path.extname(input.file)) + "." + output.extension + "." + source_map.extension)
+         source_map.directory = path.normalize(path.dirname source_map.file)
+         source_map.link = '/*# sourceMappingURL=' + path.normalize(path.relative(output.directory, source_map.directory) + "/" + path.basename(source_map.file)) + " */"
+         source_map.code =
+            file: path.normalize(path.relative(source_map.directory, output.file)),
+            sources: [path.normalize(path.relative(source_map.directory, input.file))]
+      
                
       cache = {}
-      cache.extension = "cache"
-      cache.file = path.normalize(config.cache + "/" + path.basename(input.file, path.extname(input.file)) + "." + cache.extension)
-      cache.directory = path.normalize(path.dirname cache.file)
-      cache.code = ""
+      cache.is_enabled = config.cache isnt "" and config.cache isnt null
+      if cache.is_enabled
+         cache.extension = "cache"
+         cache.file = path.normalize(config.cache + "/" + path.basename(input.file, path.extname(input.file)) + "." + cache.extension)
+         cache.directory = path.normalize(path.dirname cache.file)
+         cache.code = ""
             
       # read from cache and skip if source file is not changed.
-      if fs.existsSync(cache.file) and (input_info.mtime <= fs.lstatSync(cache.file).mtime) then batch.skipped++; return next()
+      if cache.is_enabled and fs.existsSync(cache.file) and (input_info.mtime <= fs.lstatSync(cache.file).mtime) then batch.skipped++; return next()
       
       # start processing input file.
       batch.processed++
@@ -157,19 +162,20 @@ exports["run"] = ->
             if failed is true then return back()
             if input.extension isnt "coffee" then return back()
             try
-               compiled = coffeescript.compile output.code,
-                  filename: input.file
-                  sourceMap: true
-                  sourceRoot: ""
-                  sourceFiles: source_map.sources
-                  generatedFile: source_map.file
-               output.code = compiled.js
+               options = {}
+               options.filename = input.file
+               if source_map.is_enabled
+                  options.sourceMap = true
+                  options.sourceRoot = ""
+                  options.sourceFiles = source_map.sources
+                  options.generatedFile = source_map.file
+               compiled = coffeescript.compile output.code, options
+               output.code = compiled.js or compiled
                if compiled.v3SourceMap
                   compiled.v3SourceMap = JSON.parse compiled.v3SourceMap
                   compiled.v3SourceMap.sources = source_map.code.sources
                   compiled.v3SourceMap.file = source_map.code.file
                   source_map.code = compiled.v3SourceMap
-               log.debug source_map.code
                log.debug "coffee-script compilation: DONE!"
                return back()
             catch err
@@ -184,12 +190,12 @@ exports["run"] = ->
          (back)->
             if failed is true then return back()
             if not (string(output.code).contains("$BACK_ERR") or string(output.code).contains("$BACK")) then return back()
-            asterx.transform
-               code: output.code
-               source_map: source_map.code
-               callback_value: "$BACK",
-               callback_error_value: "$BACK_ERR"
-            , (err, result)->
+            options = {}
+            options.code = output.code
+            options.source_map = source_map.code if source_map.is_enabled
+            options.callback_value = "$BACK"
+            options.callback_error_value = "$BACK_ERR"
+            asterx.transform options, (err, result)->
                if err
                   failed = true
                   log.error err.message
@@ -223,6 +229,7 @@ exports["run"] = ->
          # write source map.
          (back)->
             if failed is true then return back()
+            if source_map.is_enabled isnt true then return back()
             # skip if source map is not present.
             if not _.has source_map.code, 'mappings' then return back()
             # stringify and write source maps.
@@ -243,6 +250,7 @@ exports["run"] = ->
          # write cache file.
          (back)->
             if failed is true then return back()
+            if cache.is_enabled isnt true then return back()
             async.series [
                (back)-> fs_tools.mkdir cache.directory, back
                (back)-> fs.writeFile cache.file, cache.code, back
