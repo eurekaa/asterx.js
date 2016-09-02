@@ -66,7 +66,7 @@ exports["run"] = ->
    commander.option "-o, --output <dir>", "defines output directory for procesed files."
    commander.option "-s, --source_map [dir]", "enables source maps generation and defines directory."
    commander.option "-c, --cache [dir]", "enables files caching and defines directory."
-   commander.option "-l, --log", "enables logging and optionally defines level."
+   commander.option "-l, --log", "defines logging level [ALL, TRACE, DEBUG, INFO, WARNING, ERROR, FATAL]."
    commander.parse process.argv
    args = {}
    args.input = path.normalize commander.input if _.isString commander.input
@@ -93,36 +93,31 @@ exports["run"] = ->
       
       input = {}
       input.extension = path.extname(input_file).replace(".", "").toLowerCase()
-      input.file = input_file
-      input.directory = path.dirname input.file
+      input.file = path.normalize(input_file)
+      input.directory = path.normalize(path.dirname input.file)
       input.code = ""
       
       output = {}
       output.extension = "js"
-      output.file = input.file.replace(config.input, config.output).replace "." + input.extension, "." + output.extension
-      output.directory = config.output + "\\" + path.dirname path.relative(config.output, output.file)
+      output.file = path.normalize(config.output + "/" + path.basename(input.file, path.extname(input.file)) + "." + output.extension)
+      output.directory = path.normalize(path.dirname output.file)
       output.code = ""
-      
+
       source_map = {}
       source_map.extension = "map"
-      source_map.file = input.file.replace(config.input, config.source_map).replace("." + input.extension, "." + output.extension + "." + source_map.extension)
-      source_map.directory = config.source_map + "\\" + path.dirname path.relative(config.source_map, source_map.file)
-      source_map.link = '/*# sourceMappingURL=' + path.relative(output.directory, source_map.directory) + "\\" + path.basename(source_map.file) + " */"
+      source_map.file = path.normalize(config.source_map + "/" + path.basename(input.file, path.extname(input.file)) + "." + output.extension + "." + source_map.extension)
+      source_map.directory = path.normalize(path.dirname source_map.file)
+      source_map.link = '/*# sourceMappingURL=' + path.normalize(path.relative(output.directory, source_map.directory) + "/" + path.basename(source_map.file)) + " */"
       source_map.code =
-         file: path.resolve(output.file),
-         sources: [path.relative(source_map.directory, input.file)]
+         file: path.normalize(path.relative(source_map.directory, output.file)),
+         sources: [path.normalize(path.relative(source_map.directory, input.file))]
                
       cache = {}
       cache.extension = "cache"
-      cache.file = input.file.replace(config.input, config.cache).replace("." + input.extension, "." + cache.extension)
-      cache.directory = config.cache + "\\" + path.dirname path.relative(config.cache, cache.file)
+      cache.file = path.normalize(config.cache + "/" + path.basename(input.file, path.extname(input.file)) + "." + cache.extension)
+      cache.directory = path.normalize(path.dirname cache.file)
       cache.code = ""
-      
-      # skip output, cache and source_map directories.
-      if config.input isnt config.output and string(input.directory).contains(config.output) then return next()
-      if config.input isnt config.cache and string(input.directory).contains(config.cache) then return next()
-      if config.input isnt config.source_map and string(input.directory).contains(config.source_map) then return next()
-      
+            
       # read from cache and skip if source file is not changed.
       if fs.existsSync(cache.file) and (input_info.mtime <= fs.lstatSync(cache.file).mtime) then batch.skipped++; return next()
       
@@ -168,8 +163,13 @@ exports["run"] = ->
                   sourceRoot: ""
                   sourceFiles: source_map.sources
                   generatedFile: source_map.file
-               output.code = compiled.js or compiled
-               output.source_map = JSON.parse compiled.v3SourceMap if compiled.v3SourceMap
+               output.code = compiled.js
+               if compiled.v3SourceMap
+                  compiled.v3SourceMap = JSON.parse compiled.v3SourceMap
+                  compiled.v3SourceMap.sources = source_map.code.sources
+                  compiled.v3SourceMap.file = source_map.code.file
+                  source_map.code = compiled.v3SourceMap
+               log.debug source_map.code
                log.debug "coffee-script compilation: DONE!"
                return back()
             catch err
@@ -183,7 +183,7 @@ exports["run"] = ->
          # callback transformation.
          (back)->
             if failed is true then return back()
-            if not (string(output.code).contains "$BACK_ERR" or string(output.code).contains "$BACK") then return back()
+            if not (string(output.code).contains("$BACK_ERR") or string(output.code).contains("$BACK")) then return back()
             asterx.transform
                code: output.code
                source_map: source_map.code
