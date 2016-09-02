@@ -10,7 +10,18 @@ log4js = require "log4js"
 coffeescript = require "coffee-script"
 asterx = require "./asterx.js"
 info = require "../package.json"
-config = {}
+
+
+config =
+   input: "test"
+   output: "bin/test"
+   map: "map/test"
+   cache: "cache/test"
+   watch: false
+   callback_value: "!!"
+   callback_error_value: "!!!"
+   log: "DEBUG"
+
 
 stats =
    processed: 0
@@ -33,13 +44,6 @@ exports["info"] = ->
 
 
 exports["setup"] = (options)->
-   
-   try # load asterx config.
-      config = fs.readFileSync __dirname + "\\..\\asterx.json", "utf8"
-      config = config.replace /\/\*[^\/\*]*\*\//igm, "" # strip multi-line comments.
-      config = config.replace /\/\/.+/igm, "" # strip single-line comments.
-      config = JSON.parse config
-   catch err then throw new Error + " asterx.json: " + err
    
    try # load and merge with user config.
       user_dir = path.resolve process.cwd()
