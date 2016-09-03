@@ -50,7 +50,7 @@ exports["setup"] = (options)->
       user_dir = path.resolve process.cwd()
       if fs.existsSync(user_dir + "\\asterx.json")
          user_config = fs.readFileSync user_dir + "\\asterx.json", "utf8"
-         user_config = user_config.replace /\/\*[^\/\*]*\*\//igm, "" # strip multi-line comments.
+         user_config = user_config.replace /\/\*([\s\S]*?)\*\//igm, "" # strip multi-line comments.
          user_config = user_config.replace /\/\/.+/igm, "" # strip single-line comments.
          user_config = JSON.parse user_config
          config = _.merge config, user_config
@@ -184,18 +184,37 @@ exports["process_file"] = (file, done)->
                log.trace err.stack
                log.error "reading input: FAILED!"
             else
-               input.code = result
+               output.code = result
                log.debug "reading input: DONE!"
             return back()
       
       
-      # replace callback markers with safer ones.
+      # pre-compilation stuffs.
       (back)->
          if failed is true then return back()
-         output.code = string(input.code)
+         
+         # strip coffee comments.
+         if input.extension is "coffee"
+            output.code = string(output.code)
+            .replace(/\/\*(?:(?!\*\/)[\s\S])*\*\//igm, "")
+            .replace(/^\s*#{3}(?:(?!#)[\s\S])*#{3}/igm, "")
+            .replace(/^#{1}[^#{2,}][^\n|\r]*/igm, "")
+            .replace(/\/\/[^\n|\r]*/igm, "")
+            .toString()
+            
+         # strip javascript comments.
+         if input.extension is "js"
+            output.code = string(output.code)
+            .replace(/\/\*([\s\S]*?)\*\//igm, "")
+            .replace(/\/\/.+/igm, "")
+            .toString()
+   
+         # replace callback markers with safer ones.
+         output.code = string(output.code)
          .replaceAll config.callback_error_value, "$BACK_ERR"
          .replaceAll config.callback_value, "$BACK"
          .toString()
+         
          return back()
       
       
