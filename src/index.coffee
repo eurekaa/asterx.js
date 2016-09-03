@@ -8,6 +8,7 @@ _ = require "lodash"
 _.mixin require("underscore.string").exports()
 log4js = require "log4js"
 coffeescript = require "coffee-script"
+chokidar = require "chokidar"
 asterx = require "./asterx.js"
 info = require "../package.json"
 
@@ -70,7 +71,6 @@ exports["setup"] = (options)->
   
    
 
-
 exports["run"] = (input, done)->
    self = @
    
@@ -100,19 +100,29 @@ exports["run"] = (input, done)->
    stats.successes = 0
    stats.started = Date.now()
       
-   # walk through input and process each file.
    logger = log4js.getDefaultLogger()
    logger.info "*********** ASTERX " + info.version + " **********"
    logger.debug "[input: " + config.input + ", output: " + config.output + "]\n"
-   fs_tools.walk config.input, (input_file, input_info, next)->
-      self.process_file input_file, next
+   
+   # walk through input and process each file.
+   fs_tools.walk config.input, (file, info, next)->
+      self.process_file file, next
    , (err)->
+   
+      # keep watching for files changes
+      if config.watch is true
+         watcher = chokidar.watch config.input, persistent: true
+         watcher.on "add", (file)-> self.process_file file, ->
+         watcher.on "change", (file)-> self.process_file file, ->
+      
+      # log stats.
       stats.ended = Date.now()
       stats.duration = ((stats.ended - stats.started) / 1000) + "s"
       logger.debug """[processed: #{stats.processed}, skipped: #{stats.skipped}]"""
       logger.debug """[successes: #{stats.successes}, failures: #{stats.failures}]"""
       logger.debug """[duration: #{stats.duration}]"""
-      logger.info "********** ASTERX DONE! **********"
+      logger.info "********** ASTERX DONE! **********\n" if config.watch is false
+      
       if done then return done(err, stats)
       
       
@@ -147,9 +157,16 @@ exports["process_file"] = (file, done)->
       cache.file = path.normalize(config.cache + "/" + path.basename(input.file, path.extname(input.file)) + "." + cache.extension)
       cache.directory = path.normalize(path.dirname cache.file)
       cache.code = ""
+      
+   # skip non javascript files.
+   if input.extension.toLowerCase() isnt "coffee" and input.extension.toLowerCase() isnt "js"
+      stats.skipped++
+      return done()
          
    # read from cache and skip if source file is not changed.
-   if cache.is_enabled and fs.existsSync(cache.file) and (fs.lstatSync(input.file).mtime <= fs.lstatSync(cache.file).mtime) then stats.skipped++; return done()
+   if cache.is_enabled and fs.existsSync(cache.file) and (fs.lstatSync(input.file).mtime <= fs.lstatSync(cache.file).mtime)
+      stats.skipped++
+      return done()
    
    # start processing input file.
    stats.processed++
@@ -185,7 +202,7 @@ exports["process_file"] = (file, done)->
       # coffee-script compilation.
       (back)->
          if failed is true then return back()
-         if input.extension isnt "coffee" then return back()
+         if input.extension.toLowerCase() isnt "coffee" then return back()
          try
             options = {}
             options.filename = input.file
@@ -299,9 +316,9 @@ exports["process_file"] = (file, done)->
             log.info "processing file: DONE!\n"
          log.flush()
          return back()
+         
    
-   ], (err)->
-      return done err, stats
+   ], (err)-> if done then return done err, stats
 
 
       
