@@ -15,56 +15,24 @@ source_map = require './source_map.js'
 
 
 
-###
-   @name: cps
-   @description: performs continuous passing style transformation on javascript files.
-   @param: input {object}:
-      file {string}: path to javascript file.
-      code [string]: raw javascript code. wins on options.file.
-      ast [object]: valid ast object rappresenting javascript code (with locations if you want source mapping). wins on options.code and options.file.
-      source_map [object|string]: if defined will try to generate a Mozilla V3 source map or to update an existing one.
-         file {string}: output file path (absolute or relative to source map file).
-         sources {array}: an array of source paths involved in mapping.
-         sourceRoot [string]: root path prepended to source paths.
-         mappings [string]: if not empty will renew the source map, creates a new one otherwise.
-      options [object]: additional transformer configurations.
-         value_marker [string]: the marker to be replaced with lazy callback (without returning errors).
-         error_marker [string]: the marker to be replaced with strict callback (returning errors).
-   @param back {function}: asynchronous callback function.
-   @return output {object}:
-      code {string}: transformed string code.
-      source_map {object}: source map if required, null otherwise.
-      warnings {array}: transformation warnings.
-###
-
-exports["transform"] = (input, back)->
-   
-   if not _.isFunction back then return throw new Error('callback is required {function}.')
-   if not _.isObject input then return back new Error('input is required {object}.')
-
+exports["transform"] = (code, options, back)->
    try
-      output = {}
-      output.code = input.code
-      output.source_map = input.source_map
-      
-      input.source_map = JSON.parse input.source_map if _.isString input.source_map
-      input.source_map_enabled = _.isObject input.source_map
-      input.source_map_exists = (input.source_map_enabled is true and _.has(input.source_map, 'mappings') and not _.isEmpty(input.source_map.mappings))
-      if input.source_map_enabled is true and not _.isString input.source_map.file then return back new Error 'input.source_map.file is required {string}.'
-      if input.source_map_enabled is true and not _.isArray input.source_map.sources then return back new Error 'input.source_map.sources is required {array}.'
+      options.source_map = JSON.parse options.source_map if _.isString options.source_map
+      options.source_map_enabled = _.isObject options.source_map
+      options.source_map_exists = (options.source_map_enabled is true and _.has(options.source_map, 'mappings') and not _.isEmpty(options.source_map.mappings))
       
       # parse code.
-      input.ast = ast.parse input.code, locations: input.source_map_enabled
+      code = ast.parse code, locations: options.source_map_enabled
       
       # start with continuous passing style transformation.
       callback = {}
-      callback.value = ast.create.identifier(input.callback_value)
-      callback.error_value = ast.create.identifier(input.callback_error_value)
+      callback.value = ast.create.identifier(options.callback_value)
+      callback.error_value = ast.create.identifier(options.callback_error_value)
       callback.null = ast.create.identifier 'null'
       callback.error = ast.create.identifier 'error'
       
       # transform function declarations containing callback marker.
-      ast.walk input.ast, visitFunction: (path)->
+      ast.walk code, visitFunction: (path)->
          declaration = {}
          declaration.statements = path.node.body
          declaration.parameters = path.node.params
@@ -96,22 +64,24 @@ exports["transform"] = (input, back)->
                )
             
             # inject try catch block.
-            path.get('body').replace ast.create.blockStatement [ ast.create.tryStatement(
-               declaration.statements,
-               ast.create.catchClause(callback.error, null, ast.create.blockStatement [
-                  ast.create.returnStatement(
-                     ast.create.conditionalExpression(callback.value,
-                        ast.create.callExpression(callback.value, [callback.error]),
-                        ast.create.callExpression(callback.error_value, [callback.error])
+            if options.inject_try_catch is true
+               path.get('body').replace ast.create.blockStatement [ ast.create.tryStatement(
+                  declaration.statements,
+                  ast.create.catchClause(callback.error, null, ast.create.blockStatement [
+                     ast.create.returnStatement(
+                        ast.create.conditionalExpression(callback.value,
+                           ast.create.callExpression(callback.value, [callback.error]),
+                           ast.create.callExpression(callback.error_value, [callback.error])
+                        )
                      )
-                  )
-               ])
-            )]
+                  ])
+               )]
          
          @.traverse path
       
+         
       # transform function calls containing callback marker.
-      ast.walk input.ast, visitExpression: (path)->
+      ast.walk code, visitExpression: (path)->
          expression = {}
          expression.is_assigned = -> ast.types.AssignmentExpression.check path.node
          expression.call = if expression.is_assigned() then path.node.right else path.node
@@ -161,20 +131,38 @@ exports["transform"] = (input, back)->
             )
             
             # replace callback marker with callback function and nest siblings.
-            callback.marker.replace ast.create.functionExpression(
-               null, # function name.
-               callback.arguments, # arguments
-               ast.create.blockStatement callback.statements # nested statements.
-            )
+            if options.inject_try_catch is true
+               callback.marker.replace ast.create.functionExpression(
+                  null, # function name.
+                  callback.arguments, # arguments
+                  ast.create.blockStatement [ ast.create.tryStatement(
+                     ast.create.blockStatement(callback.statements),
+                     ast.create.catchClause(callback.error, null, ast.create.blockStatement [
+                        ast.create.returnStatement(
+                           ast.create.conditionalExpression(callback.value,
+                              ast.create.callExpression(callback.value, [callback.error]),
+                              ast.create.callExpression(callback.error_value, [callback.error])
+                           )
+                        )
+                     ])
+                  )]
+               )
+            else
+               callback.marker.replace ast.create.functionExpression(
+                  null, # function name.
+                  callback.arguments, # arguments
+                  callback.statements
+               )
+               
             
             # wrap call in a return statement.
             expression.node.replace ast.create.returnStatement(expression.call)
-         
+                     
          @.traverse path
       
       
       # inject callback helper function.
-      ast.walk input.ast, visitProgram: (path)->
+      ast.walk code, visitProgram: (path)->
          path.get('body').unshift ast.create.variableDeclaration('var', [ast.create.variableDeclarator(callback.error_value,
             ast.create.functionExpression(null, [callback.error], ast.create.blockStatement([
                # declare global 'target': window if browser, global if nodejs.
@@ -187,8 +175,8 @@ exports["transform"] = (input, back)->
                )]),
                # bubble error to 'on_error' function on target if defined, throw it otherwise.
                ast.create.ifStatement(
-                  ast.create.identifier('target.on_error'),
-                  ast.create.returnStatement(ast.create.callExpression(ast.create.identifier('target.on_error'),
+                  ast.create.identifier('target.onError'),
+                  ast.create.returnStatement(ast.create.callExpression(ast.create.identifier('target.onError'),
                      [callback.error]))
                   ast.create.throwStatement(callback.error)
                )
@@ -198,20 +186,20 @@ exports["transform"] = (input, back)->
          return false
 
       # generate code.
-      transformed = ast.format input.ast,
-         sourceMapWithCode: input.source_map_enabled
-         sourceMap: input.source_map.sources[0] if input.source_map_enabled is true
-      
-      output.code = transformed.code
+      output = {}
+      transformed = ast.format code,
+         sourceMapWithCode: options.source_map_enabled
+         sourceMap: options.source_map.sources[0] if options.source_map_enabled is true
+      output.code = transformed.code or transformed
       
       # add escodegen missing properties.
-      if input.source_map_enabled is true
+      if options.source_map_enabled is true
          output.source_map = JSON.parse transformed.map
-         output.source_map.file = input.source_map.file
-         output.source_map.sourceRoot = input.source_map.sourceRoot or ''
+         output.source_map.file = options.source_map.file
+         output.source_map.sourceRoot = options.source_map.sourceRoot or ''
          
          # map back to sources if an existing source map is provided.
-         if input.source_map_exists is true then output.source_map = source_map.map_back output.source_map, input.source_map
+         if options.source_map_exists is true then output.source_map = source_map.map_back output.source_map, options.source_map
       
       return back null, output
    

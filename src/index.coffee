@@ -16,13 +16,14 @@ info = require "../package.json"
 config =
    input: "test"
    output: "bin/test"
-   map: "map/test"
-   cache: "cache/test"
+   map: ""
+   cache: ""
    watch: false
+   log: "DEBUG"
    callback_value: "**"
    callback_error_value: "***"
-   log: "DEBUG"
-
+   inject_try_catch: true
+   
 
 stats =
    processed: 0
@@ -252,11 +253,11 @@ exports["process_file"] = (file, done)->
          if failed is true then return back()
          if not (string(output.code).contains("$BACK_ERR") or string(output.code).contains("$BACK")) then return back()
          options = {}
-         options.code = output.code
          options.source_map = source_map.code if source_map.is_enabled
          options.callback_value = "$BACK"
          options.callback_error_value = "$BACK_ERR"
-         asterx.transform options, (err, result)->
+         options.inject_try_catch = config.inject_try_catch
+         asterx.transform output.code, options, (err, result)->
             if err
                failed = true
                log.error err.message
