@@ -20,9 +20,9 @@ config =
    cache: ""
    watch: false
    log: "DEBUG"
-   callback_value: "**"
-   callback_error_value: "***"
-   inject_try_catch: true
+   callback_value: "!!"
+   callback_error_value: "!!!"
+   inject_try_catch: false
    
 
 stats =

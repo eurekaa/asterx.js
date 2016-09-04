@@ -151,7 +151,7 @@ exports["transform"] = (code, options, back)->
                callback.marker.replace ast.create.functionExpression(
                   null, # function name.
                   callback.arguments, # arguments
-                  callback.statements
+                  ast.create.blockStatement callback.statements # nested statements.
                )
                
             
