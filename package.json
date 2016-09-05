@@ -41,7 +41,8 @@
         "lodash": "2.4.1",
         "underscore.string": "2.3.3",
         "log4js": "0.6.38",
-        "chokidar": "1.6.0"
+        "chokidar": "1.6.0",
+        "uglify-js": "2.4.15"
     },
     "engines": {
         "node": ">=4.5.0"

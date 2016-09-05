@@ -9,6 +9,7 @@ _.mixin require("underscore.string").exports()
 log4js = require "log4js"
 coffeescript = require "coffee-script"
 chokidar = require "chokidar"
+uglify = require "uglify-js"
 asterx = require "./asterx.js"
 info = require "../package.json"
 
@@ -16,13 +17,14 @@ info = require "../package.json"
 config =
    input: "test"
    output: "bin/test"
-   map: ""
+   map: "map"
    cache: ""
    watch: false
    log: "DEBUG"
    callback_value: "!!"
    callback_error_value: "!!!"
    inject_try_catch: false
+   compression: true
    
 
 stats =
@@ -83,6 +85,7 @@ exports["run"] = (input, done)->
    commander.option "-m, --map [dir]", "enables source maps generation and defines their directory."
    commander.option "-c, --cache [dir]", "enables files caching and defines directory."
    commander.option "-w, --watch", "enables files watching."
+   commander.option "-p, --compression", "enables output compression."
    commander.option "-l, --log", "defines logging level [ALL, TRACE, DEBUG, INFO, WARNING, ERROR, FATAL]."
    commander.parse process.argv
    args = {}
@@ -91,6 +94,7 @@ exports["run"] = (input, done)->
    args.map = path.normalize commander.map if _.isString commander.map
    args.cache = path.normalize commander.cache if _.isString commander.cache
    args.watch = true if commander.watch
+   args.compression = true if commander.compression
    args.log = commander.log if _.isString commander.log
    @.setup args
    
@@ -269,7 +273,47 @@ exports["process_file"] = (file, done)->
                log.debug "callback transformation: DONE!"
             return back()
       
-               
+      
+      # compression.
+      (back)->
+         try
+            if failed is true then return back()
+            if config.compression isnt true then return back()
+            # parse code.
+            ast = uglify.parse output.code
+            # compress ast.
+            ast.figure_out_scope()
+            compressor = uglify.Compressor warnings: false
+            ast = ast.transform compressor
+            # mangle names.
+            ast.figure_out_scope()
+            ast.compute_char_frequency()
+            ast.mangle_names()
+            # generate compressed code.
+            options = {}
+            if source_map.is_enabled is true
+               options.source_map = uglify.SourceMap
+                  file: source_map.code.file or ""
+                  root: source_map.code.sourceRoot or ""
+                  # if a source map is present map back to source file.
+                  orig: source_map.code if _.has source_map.code, "mappings"
+            stream = uglify.OutputStream options
+            ast.print stream
+            output.code = stream.toString()
+            if source_map.is_enabled is true
+               options.source_map = JSON.parse options.source_map.toString()
+               options.source_map.sources = source_map.code.sources or []
+               source_map.code = options.source_map
+            log.debug "compression: DONE!"
+            return back()
+         catch err
+            failed = true
+            log.error err.message
+            log.trace err.stack
+            log.error "compression: FAILED!"
+            return back()
+                        
+            
       # write output file.
       (back)->
          if failed is true then return back()
