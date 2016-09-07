@@ -16,7 +16,7 @@ source_map = require "./source_map.js"
 exports["transform"] = (code, options, back)->
    try
       options.source_map = JSON.parse options.source_map if _.isString options.source_map
-      options.source_map_enabled = _.isObject options.source_map
+      options.source_map_enabled = _.isObject options.source_map or options.source_map is true
       options.source_map_exists = (options.source_map_enabled is true and _.has(options.source_map, 'mappings') and not _.isEmpty(options.source_map.mappings))
       
       # parse code.
