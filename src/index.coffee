@@ -23,7 +23,7 @@ config =
    log: "DEBUG"
    callback_value: "!!"
    callback_error_value: "!!!"
-   inject_try_catch: false
+   inject_try_catch: true
    compression: false
    
 
@@ -46,6 +46,8 @@ exports["info"] = ->
    repository: info.repository.url
    bugs: info.bugs.url
 
+   
+exports["api"] = transform: asterx.transform
 
 exports["setup"] = (options)->
    
@@ -86,7 +88,6 @@ exports["run"] = (input, done)->
    commander.option "-c, --cache [dir]", "enables files caching and defines directory."
    commander.option "-w, --watch", "enables files watching."
    commander.option "-p, --compression", "enables output compression."
-   commander.option "-t, --trycatch", "injects try-catch in every callback body."
    commander.option "-l, --log", "defines logging level [ALL, TRACE, DEBUG, INFO, WARNING, ERROR, FATAL]."
    commander.parse process.argv
    args = {}
@@ -96,7 +97,6 @@ exports["run"] = (input, done)->
    args.cache = path.normalize commander.cache if _.isString commander.cache
    args.watch = true if commander.watch
    args.compression = true if commander.compression
-   args.inject_try_catch = true if commander.trycatch
    args.log = commander.log if _.isString commander.log
    @.setup args
    
