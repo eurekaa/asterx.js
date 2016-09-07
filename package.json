@@ -1,7 +1,7 @@
 {
     "name": "asterx.js",
     "version": "1.0.0",
-    "description": "Javascript continuos-passing-style transformations.",
+    "description": "Javascript continuos-passing-style callback transformation.",
     "author": {
         "name": "Stefano Graziato",
         "url": "http://www.officine-eureka.it",
