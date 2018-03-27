@@ -9,33 +9,46 @@ var $BACK_ERR = function (error) {
     var exist, fs, readme, readme2, test;
     fs = require('fs');
     test = function ($BACK) {
-        var exist;
-        return fs.exists('../readme.md', function (error, exist) {
-            if (error)
-                return $BACK ? $BACK(error) : $BACK_ERR(error);
+        try {
+            var exist;
             return fs.exists('../readme.md', function (error, exist) {
-                if (error)
+                try {
+                    if (error)
+                        return $BACK ? $BACK(error) : $BACK_ERR(error);
+                    return $BACK ? $BACK(null, exist) : exist;
+                } catch (error) {
                     return $BACK ? $BACK(error) : $BACK_ERR(error);
-                return $BACK ? $BACK(null, exist) : exist;
+                }
             });
-        });
+        } catch (error) {
+            return $BACK ? $BACK(error) : $BACK_ERR(error);
+        }
     };
     return fs.exists('../readme.md', function (error, exist) {
-        if (error)
-            return $BACK ? $BACK(error) : $BACK_ERR(error);
-        if (exist) {
-            return fs.readFile('../readme.md', function (error, readme) {
-                if (error)
+        try {
+            if (error)
+                return $BACK ? $BACK(error) : $BACK_ERR(error);
+            if (exist) {
+                return fs.readFile('../readme.md', function (error, readme) {
+                    try {
+                        if (error)
+                            return $BACK ? $BACK(error) : $BACK_ERR(error);
+                        console.log(readme);
+                    } catch (error) {
+                        return $BACK ? $BACK(error) : $BACK_ERR(error);
+                    }
+                });
+            }
+            return fs.readFile('../readme.md', function (error, readme2) {
+                try {
+                    if (error)
+                        return $BACK ? $BACK(error) : $BACK_ERR(error);
+                } catch (error) {
                     return $BACK ? $BACK(error) : $BACK_ERR(error);
-                console.log(readme);
+                }
             });
+        } catch (error) {
+            return $BACK ? $BACK(error) : $BACK_ERR(error);
         }
-        return fs.readFile('../readme.md', function (error, readme2) {
-            readme2 = {
-                error: error,
-                value: readme2
-            };
-            console.dir(readme2);
-        });
     });
 }.call(this));

@@ -14,6 +14,7 @@ ast.types = require('ast-types').namedTypes
 source_map = require "./source_map.js"
 
 exports["transform"] = (code, options, back)->
+
    try
       options.source_map = JSON.parse options.source_map if _.isString options.source_map
       options.source_map_enabled = _.isObject options.source_map or options.source_map is true
