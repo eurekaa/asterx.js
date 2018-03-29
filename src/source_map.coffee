@@ -9,7 +9,6 @@
 
 source_map = require 'source-map'
 
-
 exports['create'] = -> new source_map.SourceMapGenerator()
 
 

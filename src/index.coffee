@@ -16,7 +16,7 @@ info = require "../package.json"
 
 config =
    input: "test"
-   output: "bin/test"
+   output: "test"
    map: ""
    cache: ""
    watch: false
@@ -76,7 +76,7 @@ exports["setup"] = (options)->
   
    
 
-exports["run"] = (input, done)->
+exports["run"] = (input, done) ->
    self = @
    
    # setup with command line arguments
@@ -91,6 +91,7 @@ exports["run"] = (input, done)->
    commander.option "-l, --log", "defines logging level [ALL, TRACE, DEBUG, INFO, WARNING, ERROR, FATAL]."
    commander.parse process.argv
    args = {}
+
    args.input = path.normalize commander.input if _.isString commander.input
    args.output = path.normalize commander.output if _.isString commander.output
    args.map = path.normalize commander.map if _.isString commander.map
