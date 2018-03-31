@@ -13,7 +13,6 @@ uglify = require "uglify-js"
 asterx = require "./asterx.js"
 info = require "../package.json"
 
-
 config =
    input: "."
    output: "."
