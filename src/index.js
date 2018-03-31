@@ -30,11 +30,11 @@
   info = require("../package.json");
 
   config = {
-    input: ".",
-    output: ".",
-    map: ".",
+    input: "./src/test",
+    output: "./src/test",
+    map: "./src/test",
     cache: "",
-    watch: true,
+    watch: false,
     log: "DEBUG",
     callback_value: "!!",
     callback_error_value: "!!!",
