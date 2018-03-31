@@ -15,11 +15,11 @@ info = require "../package.json"
 
 
 config =
-   input: "test"
-   output: "test"
-   map: ""
+   input: "."
+   output: "."
+   map: "."
    cache: ""
-   watch: false
+   watch: true
    log: "DEBUG"
    callback_value: "!!"
    callback_error_value: "!!!"
@@ -49,6 +49,7 @@ exports["info"] = ->
    
 exports["api"] = transform: asterx.transform
 
+
 exports["setup"] = (options)->
    
    try # load and merge with user config.
@@ -73,12 +74,12 @@ exports["setup"] = (options)->
          layout:
             type: "pattern", pattern: "%[[%p]%] %m"
    ]
-  
-   
+
 
 exports["run"] = (input, done) ->
    self = @
    
+
    # setup with command line arguments
    commander.version @.info().version
    commander.usage "[options]"
@@ -274,8 +275,7 @@ exports["process_file"] = (file, done)->
                output.code = result.code
                source_map.code = result.source_map
                log.debug "callback transformation: DONE!"
-            return back()
-      
+            return back()      
       
       # compression.
       (back)->
@@ -388,4 +388,4 @@ exports["process_file"] = (file, done)->
    ], (err)-> if done then return done err, stats
 
 
-      
+@.run()

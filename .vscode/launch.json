@@ -4,15 +4,14 @@
     // Per ulteriori informazioni, visitare: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
         {
+            "name": "Asterx",
             "type": "node",
             "request": "launch",
-            "name": "Avvia programma",
-            "program": "${workspaceFolder}/index.js",
-            "outFiles": [
-                "${workspaceFolder}/**/*.js"
-            ]
+            "program": "${workspaceFolder}/src/index.js",
+            "cwd": "${workspaceRoot}",
+            "sourceMaps": true,
+            "smartStep": false
         }
     ]
 }
