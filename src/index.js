@@ -30,7 +30,7 @@
   info = require("../package.json");
 
   config = {
-    input: "./src/test",
+    input: "./src/test/test.coffee",
     output: "./src/test",
     map: "./src/test",
     cache: "",
@@ -108,8 +108,7 @@
   exports["run"] = function(input, done) {
     var args, logger, self;
     self = this;
-    
-    // setup with command line arguments
+    // setup with command line arguments 
     commander.version(this.info().version);
     commander.usage("[options]");
     commander.option("-i, --input <dir>", "defines input directory for processing files.");
@@ -553,4 +552,3 @@
 
 
 //# sourceMappingURL=index.js.map
-//# sourceURL=coffeescript

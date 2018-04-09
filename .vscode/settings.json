@@ -1,7 +1,3 @@
 {
-  "coffeescript.compile": {
-    "options": {
-      "output": "${workspaceFolder}/bin/*.js"
-    }
-  }
+
 }

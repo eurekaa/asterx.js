@@ -13,8 +13,9 @@ uglify = require "uglify-js"
 asterx = require "./asterx.js"
 info = require "../package.json"
 
+
 config =
-   input: "./src/test"
+   input: "./src/test/test.coffee"
    output: "./src/test"
    map: "./src/test"
    cache: ""
@@ -77,9 +78,8 @@ exports["setup"] = (options)->
 
 exports["run"] = (input, done) ->
    self = @
-   
 
-   # setup with command line arguments
+   # setup with command line arguments 
    commander.version @.info().version
    commander.usage "[options]"
    commander.option "-i, --input <dir>", "defines input directory for processing files."
@@ -195,6 +195,7 @@ exports["process_file"] = (file, done)->
                output.code = result
                log.debug "reading input: DONE!"
             return back()
+      
       
       
       # pre-compilation stuffs.

@@ -3,7 +3,6 @@ _ = require 'lodash'
 _.string = require 'underscore.string'
 _.mixin _.string.exports()
 
-
 ast = {}
 ast.parse = require('acorn').parse
 ast.format = require('escodegen').generate
@@ -11,6 +10,7 @@ ast.walk = require('ast-types').visit
 ast.create = require('ast-types').builders
 ast.types = require('ast-types').namedTypes
 # types reference: https://github.com/benjamn/ast-types/blob/master/def/core.js
+
 
 source_map = require "./source_map.js"
 

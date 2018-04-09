@@ -26,6 +26,7 @@ With Asterx you can use the `!!` or `!!!` marker in place of a callback and just
 CPS transformation takes care to refactor your code nesting callbacks correctly!
 
 ```javascript
+
 /*** your code: ***/
 content1 = fs.readFile('path/to/file1.txt', !!);
 console.log(content1);
@@ -35,7 +36,6 @@ console.log(content2);
 
 content3 = fs.readFile('path/to/file3.txt', !!);
 console.log(content3);
-
 
 /*** asterx transformed code: ***/
 var $BACK_ERR = function (err) {
@@ -57,6 +57,7 @@ return fs.readFile('path/to/file1.txt', function(err, content1){
         });
     });
 });
+
 ```
 
 ## Usage: Error Handling
